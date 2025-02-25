@@ -14,3 +14,4 @@ pdf2image
 matplotlib
 pdf2image
 poppler-utils
+pdfplumber
