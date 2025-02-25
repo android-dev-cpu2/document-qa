@@ -1,2 +1,9 @@
 streamlit
-openai
+langchain-text-splitters
+langchain-community
+langgraph
+langchain-google-vertexai
+langchain-core
+langchain-docling
+langchain-google-genai
+langchain_redis
