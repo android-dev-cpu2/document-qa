@@ -57,7 +57,8 @@ def delete_files_with_prefix(prefix, directory="."):
 
 st.set_page_config(layout="wide")
 # Show title and description.
-st.title("💬 Krasi Test")
+
+st.header("💬 Krasi Test")
 # st.write(
 #     "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
 #     "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
@@ -301,12 +302,7 @@ elif not st.session_state.loaded:
         document_ids = vector_store.add_documents(documents=documents)
         print("stored in vector store.")
         print(document_ids)
-        st.session_state.pdfimages = convert_from_path(tmp_location)
-        image_paths = []
-        for i, img in enumerate(st.session_state.pdfimages):
-            img_path = f"temp_page_{i}.png"
-            img.save(img_path, "JPEG")  # Save each page as an image
-            image_paths.append(img_path)
+        st.session_state.pdfimages = convert_from_path(tmp_location, size=(2000, None))
 
         st.session_state.loaded = True
         st.session_state.graph = graph
@@ -371,8 +367,8 @@ else:
                 }
             </style>
             """, unsafe_allow_html=True)
-        pdfContainer = st.container(height=500)
-        static_width = 500
+        pdfContainer = st.container(height=600)
+        static_width = 700
         with pdfContainer:
             for i, image in enumerate(st.session_state.pdfimages):
                 imgCopy = image.copy()
