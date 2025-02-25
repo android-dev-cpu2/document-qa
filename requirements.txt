@@ -7,3 +7,4 @@ langchain-core
 langchain-docling
 langchain-google-genai
 langchain_redis
+pypdf
