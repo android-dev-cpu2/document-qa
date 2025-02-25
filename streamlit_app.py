@@ -1,9 +1,15 @@
+from PIL import Image, ImageDraw
+import streamlit as st
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import numpy as np
 from langchain_community.document_loaders import PyPDFLoader
 from pdf2image import convert_from_path
 from langchain.schema import Document
 from pdf2image import convert_from_path
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import pdfplumber
 import streamlit as st
 import os
 import fitz
@@ -26,6 +32,22 @@ from redisvl.query.filter import Tag, Num, Text
 import streamlit as st
 import pandas as pd
 from io import StringIO, BytesIO
+import glob
+
+def delete_files_with_prefix(prefix, directory="."):
+    """Deletes all files starting with a given prefix in a directory."""
+    file_pattern = os.path.join(directory, f"{prefix}*")  # Match prefix
+    files_to_delete = glob.glob(file_pattern)  # Find matching files
+
+    for file_path in files_to_delete:
+        try:
+            os.remove(file_path)  # Delete file
+            print(f"Deleted: {file_path}")
+        except Exception as e:
+            print(f"Error deleting {file_path}: {e}")
+
+# Example: Delete all images with prefix "temp_page_"
+
 
 # from redissaver import RedisSaver
 
@@ -51,6 +73,9 @@ if "loaded" not in st.session_state:
 if "gemini_key" not in st.session_state:
     st.session_state.gemini_key = ""
 
+if "artifacts" not in st.session_state:
+    st.session_state.artifacts = []
+
 print('reruns')
 if st.session_state.gemini_key == "":
     st.text_input("API Key", type="default", key="gkey", on_change=setKey)
@@ -58,6 +83,7 @@ elif not st.session_state.loaded:
     print(st.session_state.gemini_key)
     uploaded_file = st.file_uploader("Choose a file", type=["pdf"])
     if uploaded_file is not None:
+        delete_files_with_prefix("temp_page_")
         tmp_location = 'tempKrasiPdf'
         with open(tmp_location, "wb") as f:
             f.write(uploaded_file.read())
@@ -111,7 +137,19 @@ elif not st.session_state.loaded:
             print("k1")
             print(query)
             print("k2")
-            retrieved_docs = vector_store.similarity_search(query, k=4)
+            
+            retrieved_docs_1 = vector_store.similarity_search_with_score(query, k=4)
+            # print (f"krkrkr: ", len(retrieved_docs_first))
+            # retrieved_docs= []
+            # for doc in retrieved_docs_first:
+            #     print("adkakdkas")
+            #     print(doc[0])
+            #     retrieved_docs.append(doc[0])
+            retrieved_docs = []
+            for doc in retrieved_docs_1:
+                if (doc[1] > 0.5):
+                    retrieved_docs.append(doc[0])
+            
             serialized = "\n\n".join(
                 (f"Id: {doc.id} Source: {doc.metadata}\n" f"Content: {doc.page_content}")
                 for doc in retrieved_docs
@@ -208,37 +246,72 @@ elif not st.session_state.loaded:
         # print("stored in vector store.")
         # print(document_ids)
 
-        doc = fitz.open(tmp_location)
         text_data = []
-        for page_num, page in enumerate(doc):
-            blocks = page.get_text("blocks")
-            for block in blocks:
-                x0, y0, x1, y1, text = block[:5]
-                if text.strip():
+        page_datas = []
+        with pdfplumber.open(tmp_location) as pdf:
+            for page_num, page in enumerate(pdf.pages):
+                words = page.extract_words()  # Extract words with bounding boxes
+                page_datas.append(page.bbox)
+                paragraphs = []
+                current_paragraph = []
+                prev_y = None
+                y_threshold = 10  # Adjust this based on paragraph spacing
+
+                for word in words:
+                    x0, y0, x1, y1, text = word["x0"], word["top"], word["x1"], word["bottom"], word["text"]
+
+                    # Detect paragraph breaks based on vertical spacing
+                    if prev_y is not None and abs(y0 - prev_y) > y_threshold:
+                        if current_paragraph:
+                            paragraphs.append(current_paragraph)
+                        current_paragraph = []
+
+                    current_paragraph.append((x0, y0, x1, y1, text))
+                    prev_y = y0
+
+                if current_paragraph:  # Append last paragraph
+                    paragraphs.append(current_paragraph)
+
+                # Convert paragraphs into structured text + bounding boxes
+                for paragraph in paragraphs:
+                    paragraph_text = " ".join([w[4] for w in paragraph])  # Join words into paragraph
+                    bbox = (
+                        min(w[0] for w in paragraph),  # x0
+                        min(w[1] for w in paragraph),  # y0
+                        max(w[2] for w in paragraph),  # x1
+                        max(w[3] for w in paragraph),  # y1
+                    )
+
                     text_data.append({
-                        "text": text.strip(),
-                        "page": page_num,
-                        "bbox": (x0, y0, x1, y1)
+                        "text": paragraph_text,
+                        "page": page_num + 1,
+                        "bounding_box": bbox
                     })
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200, add_start_index=True)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200, add_start_index=True, separators=["\n\n"])
         documents = []
         for entry in text_data:
             chunks = text_splitter.split_text(entry["text"])
             for chunk in chunks:
                 documents.append(Document(page_content=chunk, metadata={
                     "page":entry["page"],
-                    "bbox":entry["bbox"]
+                    "bounding_box":entry["bounding_box"]
                 }))
         
-        for doc in text_data:
-            print(text_data)
-
+        document_ids = vector_store.add_documents(documents=documents)
+        print("stored in vector store.")
+        print(document_ids)
         st.session_state.pdfimages = convert_from_path(tmp_location)
+        image_paths = []
+        for i, img in enumerate(st.session_state.pdfimages):
+            img_path = f"temp_page_{i}.png"
+            img.save(img_path, "JPEG")  # Save each page as an image
+            image_paths.append(img_path)
 
         st.session_state.loaded = True
         st.session_state.graph = graph
         st.session_state.cff = config
+        st.session_state.page_datas = page_datas
         st.rerun()
 
 else:
@@ -274,6 +347,14 @@ else:
                         config=st.session_state.cff,
                     ):
                         msg = step["messages"][-1]
+                        artifacts = []
+                        if (len(step["messages"]) > 1):
+                            recent_tool_message = step["messages"][-2]
+                            if recent_tool_message.type == "tool":
+                                for artifact in recent_tool_message.artifact:
+                                    artifacts.append(artifact)
+                        st.session_state.artifacts = artifacts
+
                         if msg.type == 'ai' and not msg.tool_calls:
                             # with st.chat_message("assistant"):
                                 # st.write(msg.content)
@@ -281,7 +362,33 @@ else:
                                     {"role": "assistant", "content": msg.content})
                     st.rerun()
             
-    with col2:
-        st.header('doc')
-        for i, image in enumerate(st.session_state.pdfimages):
-            st.image(image, caption=f"Page {i + 1}", use_column_width=True)
+    with col2:     
+        st.header('Document')
+        st.markdown("""
+            <style>
+                .block-container {
+                    padding: 0rem 0rem !important;
+                }
+            </style>
+            """, unsafe_allow_html=True)
+        pdfContainer = st.container(height=500)
+        static_width = 500
+        with pdfContainer:
+            for i, image in enumerate(st.session_state.pdfimages):
+                imgCopy = image.copy()
+                draw = ImageDraw.Draw(imgCopy)
+                mediaBox = st.session_state.page_datas[i]
+                pageWidth = mediaBox[2] - mediaBox[0]
+                pageHeight = mediaBox[3] - mediaBox[1]
+                scale = image.width / pageWidth
+                for artifact in st.session_state.artifacts:
+                    if (artifact.metadata["page"] == i + 1):
+                        origBB = artifact.metadata["bounding_box"]
+                        scaledBB = (origBB[0] * scale, origBB[1] * scale, origBB[2] * scale, origBB[3] * scale)
+                        draw.rectangle(scaledBB, outline="red", width=3)
+                        print(artifact)
+                st.image(imgCopy, width=static_width)
+               
+
+
+
