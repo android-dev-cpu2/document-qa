@@ -1,5 +1,7 @@
+import time
 from PIL import Image, ImageDraw
 import streamlit as st
+from langchain.tools import Tool
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
@@ -39,8 +41,10 @@ def extract_text_with_metadata(pdf_path):
     doc = fitz.open(pdf_path)
     chunks = []
     page_datas = []
+    full_text = []
     for page_num, page in enumerate(doc):
         page_datas.append(page.rect)
+        full_text.append(page.get_text())
         blocks = page.get_text("dict")["blocks"]
         for block in blocks:
             if "lines" in block:
@@ -57,7 +61,7 @@ def extract_text_with_metadata(pdf_path):
                     "bounding_box": bbox
                 })
     doc.close()
-    return chunks, page_datas
+    return chunks, page_datas, "\n".join(full_text)
 
 
 def delete_files_with_prefix(prefix, directory="."):
@@ -111,7 +115,7 @@ elif not st.session_state.loaded:
     uploaded_file = st.file_uploader("Choose a file", type=["pdf"])
     if uploaded_file is not None:
         delete_files_with_prefix("temp_page_")
-        tmp_location = 'tempKrasiPdf'
+        tmp_location = 'tempKrasiPdf' + str(int(time.time()))
         with open(tmp_location, "wb") as f:
             f.write(uploaded_file.read())
 
@@ -158,9 +162,11 @@ elif not st.session_state.loaded:
         # CHAT
         graph_builder = StateGraph(MessagesState)
 
-        @tool(response_format="content_and_artifact")
+        text_data, page_datas, full_text = extract_text_with_metadata(tmp_location)
+
+        # @tool(response_format="content_and_artifact")
         def retrieve(query: str):
-            """Retrieve information related to a query."""
+            print('vector search tool access')
             print("k1")
             print(query)
             print("k2")
@@ -183,25 +189,51 @@ elif not st.session_state.loaded:
             )
             return serialized, retrieved_docs
 
+        def full_document_tool(query: str):
+            print('full doc tool access')
+            print(full_text)
+            return full_text
+
+        vector_search = Tool(
+            name="retrieve",
+            func=retrieve,
+            description=(
+                "Use this tool when the user's question requires retrieving relevant "
+                "chunks or specific sections from document. This performs a "
+                "similarity search to find the best matches for the query."
+            ),
+            response_format="content_and_artifact"
+        )
+
+        full_doc = Tool(
+            name="full_document_tool",
+            func=full_document_tool,
+            description=(
+                "Use this tool if the question explicitly requires the *entire* document, "
+                "or if the user asks for a full article/text rather than just a snippet."
+            ),
+        )
+
         # Step 1: Generate an AIMessage that may include a tool-call to be sent.
         def query_or_respond(state: MessagesState):
             """Generate tool call for retrieval or respond."""
 
             system_message_content = (
                 "You are an assistant for question-answering tasks. "
-                "Use the following pieces of retrieved context to answer "
-                "the question. If you don't know the answer, say that you "
-                "don't know. If the user asks about his docs use your retrieval tool to search."
+                "Your context is a document "
+                "Use your tools as context to answer, prefer your Vector Search Tool when "
+                "you are asked for specific information in the document and your Full Document Tool when you will need more context"
+                "as when you have to summarize the document "
+                "don't know. If the user asks about his document use your retrieval tools to search."
             )
 
-            llm_with_tools = llm.bind_tools([retrieve], tool_choice="retrieve")
+            llm_with_tools = llm.bind_tools([vector_search, full_doc])
             prompt = [SystemMessage(system_message_content)]
             response = llm_with_tools.invoke(prompt + state["messages"])
             # MessagesState appends messages to state instead of overwriting
             return {"messages": [response]}
 
         # Step 2: Execute the retrieval.
-        tools = ToolNode([retrieve])
 
         # Step 3: Generate a response using the retrieved content.
         def generate(state: MessagesState):
@@ -222,7 +254,7 @@ elif not st.session_state.loaded:
                 "Use the following pieces of retrieved context to answer "
                 "the question. If you don't know the answer, say that you "
                 "don't know. Use three sentences maximum and keep the "
-                "answer concise. If the user asks about his docs use your retrieval tool to search."
+                "answer concise. If the user asks about his document use your retrieval tool to search."
                 "\n\n"
                 f"{docs_content}"
             )
@@ -239,6 +271,9 @@ elif not st.session_state.loaded:
             response = llm.invoke(prompt)
             return {"messages": [response]}
 
+    
+        tools = ToolNode([vector_search, full_doc])
+        
         graph_builder.add_node(query_or_respond)
         graph_builder.add_node(tools)
         graph_builder.add_node(generate)
@@ -315,7 +350,6 @@ elif not st.session_state.loaded:
         #                 "bounding_box": bbox
         #             })
 
-        text_data, page_datas = extract_text_with_metadata(tmp_location)
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200, add_start_index=True, separators=["\n\n"])
         documents = []
@@ -336,6 +370,7 @@ elif not st.session_state.loaded:
         st.session_state.graph = graph
         st.session_state.cff = config
         st.session_state.page_datas = page_datas
+        os.remove(tmp_location)
         st.rerun()
 
 else:
@@ -374,7 +409,7 @@ else:
                         artifacts = []
                         if (len(step["messages"]) > 1):
                             recent_tool_message = step["messages"][-2]
-                            if recent_tool_message.type == "tool":
+                            if recent_tool_message.type == "tool" and recent_tool_message.artifact:
                                 for artifact in recent_tool_message.artifact:
                                     artifacts.append(artifact)
                         st.session_state.artifacts = artifacts
