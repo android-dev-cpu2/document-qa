@@ -139,7 +139,7 @@ elif not st.session_state.loaded:
             print(query)
             print("k2")
             
-            retrieved_docs_1 = vector_store.similarity_search_with_score(query, k=4)
+            retrieved_docs_1 = vector_store.similarity_search_with_score(query, k=10)
             # print (f"krkrkr: ", len(retrieved_docs_first))
             # retrieved_docs= []
             # for doc in retrieved_docs_first:
@@ -148,7 +148,7 @@ elif not st.session_state.loaded:
             #     retrieved_docs.append(doc[0])
             retrieved_docs = []
             for doc in retrieved_docs_1:
-                if (doc[1] > 0.5):
+                if (doc[1] > 0.4):
                     retrieved_docs.append(doc[0])
             
             serialized = "\n\n".join(
@@ -256,7 +256,7 @@ elif not st.session_state.loaded:
                 paragraphs = []
                 current_paragraph = []
                 prev_y = None
-                y_threshold = 10  # Adjust this based on paragraph spacing
+                y_threshold = 30  # Adjust this based on paragraph spacing
 
                 for word in words:
                     x0, y0, x1, y1, text = word["x0"], word["top"], word["x1"], word["bottom"], word["text"]
