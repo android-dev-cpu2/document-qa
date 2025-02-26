@@ -98,6 +98,8 @@ st.header("💬 Krasi Test")
 def setKey():
     st.session_state.gemini_key = st.session_state.gkey
 
+st.session_state.gemini_key = st.secrets.gemini_api_key
+
 if "loaded" not in st.session_state:
     st.session_state.loaded = False
 
@@ -253,8 +255,7 @@ elif not st.session_state.loaded:
                 "You are an assistant for question-answering tasks. "
                 "Use the following pieces of retrieved context to answer "
                 "the question. If you don't know the answer, say that you "
-                "don't know. Use three sentences maximum and keep the "
-                "answer concise. If the user asks about his document use your retrieval tool to search."
+                "don't know. You are a multilingual assistant. Always respond in the same language as the user\'s request."
                 "\n\n"
                 f"{docs_content}"
             )
