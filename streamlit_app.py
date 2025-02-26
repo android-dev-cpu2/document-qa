@@ -34,6 +34,32 @@ import pandas as pd
 from io import StringIO, BytesIO
 import glob
 
+# Step 1: Extract text and metadata from PDF
+def extract_text_with_metadata(pdf_path):
+    doc = fitz.open(pdf_path)
+    chunks = []
+    page_datas = []
+    for page_num, page in enumerate(doc):
+        page_datas.append(page.rect)
+        blocks = page.get_text("dict")["blocks"]
+        for block in blocks:
+            if "lines" in block:
+                # Combine all lines in the block into one text chunk for better context
+                block_lines = []
+                for line in block["lines"]:
+                    line_text = " ".join([span["text"] for span in line["spans"]])
+                    block_lines.append(line_text)
+                block_text = " ".join(block_lines)
+                bbox = block.get("bbox", None)
+                chunks.append({
+                    "text": block_text,
+                    "page": page_num + 1,
+                    "bounding_box": bbox
+                })
+    doc.close()
+    return chunks, page_datas
+
+
 def delete_files_with_prefix(prefix, directory="."):
     """Deletes all files starting with a given prefix in a directory."""
     file_pattern = os.path.join(directory, f"{prefix}*")  # Match prefix
@@ -148,7 +174,7 @@ elif not st.session_state.loaded:
             #     retrieved_docs.append(doc[0])
             retrieved_docs = []
             for doc in retrieved_docs_1:
-                if (doc[1] > 0.4):
+                if (doc[1] > 0.5):
                     retrieved_docs.append(doc[0])
             
             serialized = "\n\n".join(
@@ -247,47 +273,49 @@ elif not st.session_state.loaded:
         # print("stored in vector store.")
         # print(document_ids)
 
-        text_data = []
-        page_datas = []
-        with pdfplumber.open(tmp_location) as pdf:
-            for page_num, page in enumerate(pdf.pages):
-                words = page.extract_words()  # Extract words with bounding boxes
-                page_datas.append(page.bbox)
-                paragraphs = []
-                current_paragraph = []
-                prev_y = None
-                y_threshold = 30  # Adjust this based on paragraph spacing
+        # text_data = []
+        # page_datas = []
+        # with pdfplumber.open(tmp_location) as pdf:
+        #     for page_num, page in enumerate(pdf.pages):
+        #         words = page.extract_words()  # Extract words with bounding boxes
+        #         page_datas.append(page.bbox)
+        #         paragraphs = []
+        #         current_paragraph = []
+        #         prev_y = None
+        #         y_threshold = 30  # Adjust this based on paragraph spacing
 
-                for word in words:
-                    x0, y0, x1, y1, text = word["x0"], word["top"], word["x1"], word["bottom"], word["text"]
+        #         for word in words:
+        #             x0, y0, x1, y1, text = word["x0"], word["top"], word["x1"], word["bottom"], word["text"]
 
-                    # Detect paragraph breaks based on vertical spacing
-                    if prev_y is not None and abs(y0 - prev_y) > y_threshold:
-                        if current_paragraph:
-                            paragraphs.append(current_paragraph)
-                        current_paragraph = []
+        #             # Detect paragraph breaks based on vertical spacing
+        #             if prev_y is not None and abs(y0 - prev_y) > y_threshold:
+        #                 if current_paragraph:
+        #                     paragraphs.append(current_paragraph)
+        #                 current_paragraph = []
 
-                    current_paragraph.append((x0, y0, x1, y1, text))
-                    prev_y = y0
+        #             current_paragraph.append((x0, y0, x1, y1, text))
+        #             prev_y = y0
 
-                if current_paragraph:  # Append last paragraph
-                    paragraphs.append(current_paragraph)
+        #         if current_paragraph:  # Append last paragraph
+        #             paragraphs.append(current_paragraph)
 
-                # Convert paragraphs into structured text + bounding boxes
-                for paragraph in paragraphs:
-                    paragraph_text = " ".join([w[4] for w in paragraph])  # Join words into paragraph
-                    bbox = (
-                        min(w[0] for w in paragraph),  # x0
-                        min(w[1] for w in paragraph),  # y0
-                        max(w[2] for w in paragraph),  # x1
-                        max(w[3] for w in paragraph),  # y1
-                    )
+        #         # Convert paragraphs into structured text + bounding boxes
+        #         for paragraph in paragraphs:
+        #             paragraph_text = " ".join([w[4] for w in paragraph])  # Join words into paragraph
+        #             bbox = (
+        #                 min(w[0] for w in paragraph),  # x0
+        #                 min(w[1] for w in paragraph),  # y0
+        #                 max(w[2] for w in paragraph),  # x1
+        #                 max(w[3] for w in paragraph),  # y1
+        #             )
 
-                    text_data.append({
-                        "text": paragraph_text,
-                        "page": page_num + 1,
-                        "bounding_box": bbox
-                    })
+        #             text_data.append({
+        #                 "text": paragraph_text,
+        #                 "page": page_num + 1,
+        #                 "bounding_box": bbox
+        #             })
+
+        text_data, page_datas = extract_text_with_metadata(tmp_location)
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200, add_start_index=True, separators=["\n\n"])
         documents = []
