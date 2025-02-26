@@ -374,6 +374,13 @@ elif not st.session_state.loaded:
         st.rerun()
 
 else:
+    def reset():
+        st.session_state.loaded = False
+        st.session_state.artifacts = []
+        st.session_state.pdfimages = []
+        st.session_state.messages = []
+
+    st.button('New Chat', on_click=reset)
     col1, col2 = st.columns([1, 1])
     with col1:
         st.subheader('Chat')
