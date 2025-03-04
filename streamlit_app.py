@@ -199,17 +199,14 @@ elif not st.session_state.loaded:
                 }))
         
         document_ids = vector_store.add_documents(documents=documents)
-        print("stored in vector store.")
-        print(document_ids)
+        print("stored in vector store: " + str(len(document_ids)))
         st.session_state.pdfimages = convert_from_path(tmp_location, size=(700, None))
-
         st.session_state.loaded = True
         st.session_state.graph = graph
         st.session_state.cff = config
         st.session_state.page_datas = page_datas
         os.remove(tmp_location)
         st.rerun()
-
 else:
     def reset():
         st.session_state.loaded = False
