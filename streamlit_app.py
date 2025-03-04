@@ -40,9 +40,6 @@ def extract_text_with_metadata(pdf_path):
     doc.close()
     return chunks, page_datas, "\n".join(full_text)
 
-def setKey():
-    st.session_state.gemini_key = st.session_state.gkey
-
 st.session_state.gemini_key = st.secrets.gemini_api_key
 
 if "loaded" not in st.session_state:
@@ -54,15 +51,12 @@ if "gemini_key" not in st.session_state:
 if "artifacts" not in st.session_state:
     st.session_state.artifacts = []
 
-print('reruns')
 if st.session_state.gemini_key == "":
-    st.text_input("API Key", type="default", key="gkey", on_change=setKey)
+    st.text_input("Gemini API Key", type="default", key="gemini_key")
 elif not st.session_state.loaded:
-    print(st.session_state.gemini_key)
-    uploaded_file = st.file_uploader("Choose a file", type=["pdf"])
+    uploaded_file = st.file_uploader("Please upload a PDF document", type=["pdf"])
     if uploaded_file is not None:
-        delete_files_with_prefix("temp_page_")
-        tmp_location = 'tempKrasiPdf' + str(int(time.time()))
+        tmp_location = 'tmp_' + str(int(time.time()))
         with open(tmp_location, "wb") as f:
             f.write(uploaded_file.read())
 
