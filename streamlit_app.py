@@ -121,7 +121,6 @@ elif not st.session_state.loaded:
             ),
         )
 
-        # Step 1: Generate an AIMessage that may include a tool-call to be sent.
         def query_or_respond(state: MessagesState):
             """Generate tool call for retrieval or respond."""
 
@@ -130,22 +129,18 @@ elif not st.session_state.loaded:
                 "Your context is a document "
                 "Use your tools as context to answer, prefer your Vector Search Tool when "
                 "you are asked for specific information in the document and your Full Document Tool when you will need more context"
-                "as when you have to summarize the document "
-                "don't know. If the user asks about his document use your retrieval tools to search."
+                "as when you have to summarize the document. "
             )
 
             llm_with_tools = llm.bind_tools([vector_search, full_doc])
             prompt = [SystemMessage(system_message_content)]
             response = llm_with_tools.invoke(prompt + state["messages"])
-            # MessagesState appends messages to state instead of overwriting
             return {"messages": [response]}
 
-        # Step 2: Execute the retrieval.
+        tools = ToolNode([vector_search, full_doc])
 
-        # Step 3: Generate a response using the retrieved content.
         def generate(state: MessagesState):
             """Generate answer."""
-            # Get generated ToolMessages
             recent_tool_messages = []
             for message in reversed(state["messages"]):
                 if message.type == "tool":
@@ -154,7 +149,6 @@ elif not st.session_state.loaded:
                     break
             tool_messages = recent_tool_messages[::-1]
 
-            # Format into prompt
             docs_content = "\n\n".join(doc.content for doc in tool_messages)
             system_message_content = (
                 "You are an assistant for question-answering tasks. "
@@ -170,16 +164,11 @@ elif not st.session_state.loaded:
                 if message.type in ("human", "system")
                 or (message.type == "ai" and not message.tool_calls)
             ]
-            prompt = [SystemMessage(system_message_content)
-                      ] + conversation_messages
+            prompt = [SystemMessage(system_message_content)] + conversation_messages
 
-            # Run
             response = llm.invoke(prompt)
             return {"messages": [response]}
 
-    
-        tools = ToolNode([vector_search, full_doc])
-        
         graph_builder.add_node(query_or_respond)
         graph_builder.add_node(tools)
         graph_builder.add_node(generate)
@@ -193,69 +182,11 @@ elif not st.session_state.loaded:
         graph_builder.add_edge("tools", "generate")
         graph_builder.add_edge("generate", END)
 
-        # MEMORY
-        # memory = RedisSaver(conn=redisCli)
         memory = MemorySaver()
 
         graph = graph_builder.compile(checkpointer=memory)
 
         config = {"configurable": {"thread_id": "abc123"}}
-
-        # loader = PyPDFLoader(tmp_location)
-        # docs = loader.load()
-        # print(f"doc length: {len(docs[0].page_content)}.")
-        # text_splitter = RecursiveCharacterTextSplitter(
-        #     chunk_size=1000, chunk_overlap=200, add_start_index=True)
-        # all_splits = text_splitter.split_documents(docs)
-        # print(f"split into {len(all_splits)} sub-documents.")
-        # print(all_splits[0])
-        # # INDEX CHUNKS
-        # document_ids = vector_store.add_documents(documents=all_splits)
-        # print("stored in vector store.")
-        # print(document_ids)
-
-        # text_data = []
-        # page_datas = []
-        # with pdfplumber.open(tmp_location) as pdf:
-        #     for page_num, page in enumerate(pdf.pages):
-        #         words = page.extract_words()  # Extract words with bounding boxes
-        #         page_datas.append(page.bbox)
-        #         paragraphs = []
-        #         current_paragraph = []
-        #         prev_y = None
-        #         y_threshold = 30  # Adjust this based on paragraph spacing
-
-        #         for word in words:
-        #             x0, y0, x1, y1, text = word["x0"], word["top"], word["x1"], word["bottom"], word["text"]
-
-        #             # Detect paragraph breaks based on vertical spacing
-        #             if prev_y is not None and abs(y0 - prev_y) > y_threshold:
-        #                 if current_paragraph:
-        #                     paragraphs.append(current_paragraph)
-        #                 current_paragraph = []
-
-        #             current_paragraph.append((x0, y0, x1, y1, text))
-        #             prev_y = y0
-
-        #         if current_paragraph:  # Append last paragraph
-        #             paragraphs.append(current_paragraph)
-
-        #         # Convert paragraphs into structured text + bounding boxes
-        #         for paragraph in paragraphs:
-        #             paragraph_text = " ".join([w[4] for w in paragraph])  # Join words into paragraph
-        #             bbox = (
-        #                 min(w[0] for w in paragraph),  # x0
-        #                 min(w[1] for w in paragraph),  # y0
-        #                 max(w[2] for w in paragraph),  # x1
-        #                 max(w[3] for w in paragraph),  # y1
-        #             )
-
-        #             text_data.append({
-        #                 "text": paragraph_text,
-        #                 "page": page_num + 1,
-        #                 "bounding_box": bbox
-        #             })
-
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200, add_start_index=True, separators=["\n\n"])
         documents = []
