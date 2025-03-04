@@ -94,14 +94,6 @@ elif not st.session_state.loaded:
 
         vector_store = InMemoryVectorStore(embedding_model)
 
-        filters = [Namespace(name="season", allow_tokens=["winter"])]
-
-        # redis filters
-        season = Tag("season") == "spring"
-        price = Num("price") < 200
-        color = Text("color") == "blue"
-        redisFilter = color
-
         # filters = []
         # CHAT
         graph_builder = StateGraph(MessagesState)
