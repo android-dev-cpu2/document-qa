@@ -1,40 +1,19 @@
 import time
-from PIL import Image, ImageDraw
-import streamlit as st
-from langchain.tools import Tool
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import numpy as np
-from langchain_community.document_loaders import PyPDFLoader
-from pdf2image import convert_from_path
-from langchain.schema import Document
-from pdf2image import convert_from_path
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import pdfplumber
 import streamlit as st
 import os
 import fitz
+import glob
+from langchain.tools import Tool
+from langchain.schema import Document
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from google.cloud.aiplatform.matching_engine.matching_engine_index_endpoint import Namespace, NumericNamespace
 from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langgraph.graph import MessagesState, StateGraph
-from langchain_core.tools import tool
 from langchain_core.messages import SystemMessage
-from langgraph.prebuilt import ToolNode
-from langgraph.graph import END
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langgraph.graph import MessagesState, StateGraph, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
-from langchain_google_vertexai import VectorSearchVectorStore
-# import redis
-from langchain_redis import RedisConfig, RedisVectorStore
-from redisvl.query.filter import Tag, Num, Text
-import streamlit as st
-import pandas as pd
-from io import StringIO, BytesIO
-import glob
+from PIL import ImageDraw
+from pdf2image import convert_from_path
 
 # Step 1: Extract text and metadata from PDF
 def extract_text_with_metadata(pdf_path):
