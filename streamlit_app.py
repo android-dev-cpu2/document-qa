@@ -66,7 +66,6 @@ elif not st.session_state.loaded:
         if "GOOGLE_API_KEY" not in os.environ:
             os.environ["GOOGLE_API_KEY"] = st.session_state.gemini_key
 
-        # LLVM
         llm = ChatGoogleGenerativeAI(
             model="gemini-1.5-pro",
             temperature=0,
@@ -75,59 +74,31 @@ elif not st.session_state.loaded:
             max_retries=2,
         )
 
-        # EMBEDDINGS
-        embedding_model = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004")
-
-        # VECTOR STORE
-        # config = RedisConfig(
-        #     index_name="indexKrasi_",
-        #     redis_client=redisCli,
-        #     metadata_schema=[
-        #         {"name": "color", "type": "text"},
-        #         {"name": "price", "type": "numeric"},
-        #         {"name": "season", "type": "tag"}
-        #     ]
-        # )
-
-        # vector_store = RedisVectorStore(embeddings=embedding_model,config=config)
+        embedding_model = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
 
         vector_store = InMemoryVectorStore(embedding_model)
 
-        # filters = []
-        # CHAT
         graph_builder = StateGraph(MessagesState)
 
         text_data, page_datas, full_text = extract_text_with_metadata(tmp_location)
 
-        # @tool(response_format="content_and_artifact")
         def retrieve(query: str):
-            print('vector search tool access')
-            print("k1")
-            print(query)
-            print("k2")
+            print('vector search tool access: ' + query)
             
-            retrieved_docs_1 = vector_store.similarity_search_with_score(query, k=10)
-            # print (f"krkrkr: ", len(retrieved_docs_first))
-            # retrieved_docs= []
-            # for doc in retrieved_docs_first:
-            #     print("adkakdkas")
-            #     print(doc[0])
-            #     retrieved_docs.append(doc[0])
-            retrieved_docs = []
-            for doc in retrieved_docs_1:
-                if (doc[1] > 0.5):
-                    retrieved_docs.append(doc[0])
+            search_results = vector_store.similarity_search_with_score(query, k=10)
+            retrieved_docs_filtered = []
+            for search_result in search_results:
+                if (search_result[1] > 0.5):
+                    retrieved_docs_filtered.append(search_result[0])
             
             serialized = "\n\n".join(
                 (f"Id: {doc.id} Source: {doc.metadata}\n" f"Content: {doc.page_content}")
-                for doc in retrieved_docs
+                for doc in retrieved_docs_filtered
             )
-            return serialized, retrieved_docs
+            return serialized, retrieved_docs_filtered
 
         def full_document_tool(query: str):
             print('full doc tool access')
-            print(full_text)
             return full_text
 
         vector_search = Tool(
