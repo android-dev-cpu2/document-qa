@@ -51,8 +51,11 @@ if "gemini_key" not in st.session_state:
 if "artifacts" not in st.session_state:
     st.session_state.artifacts = []
 
+def setKey():
+    st.session_state.gemini_key = st.session_state.gemini_key_field
+
 if st.session_state.gemini_key == "":
-    st.text_input("Gemini API Key", type="default", key="gemini_key")
+    st.text_input("Gemini API Key", type="default", key="gemini_key_field", on_change=setKey)
 elif not st.session_state.loaded:
     uploaded_file = st.file_uploader("Please upload a PDF document", type=["pdf"])
     if uploaded_file is not None:
