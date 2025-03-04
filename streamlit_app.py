@@ -2,7 +2,6 @@ import time
 import streamlit as st
 import os
 import fitz
-import glob
 from langchain.tools import Tool
 from langchain.schema import Document
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
@@ -15,7 +14,6 @@ from langgraph.checkpoint.memory import MemorySaver
 from PIL import ImageDraw
 from pdf2image import convert_from_path
 
-# Step 1: Extract text and metadata from PDF
 def extract_text_with_metadata(pdf_path):
     doc = fitz.open(pdf_path)
     chunks = []
@@ -36,43 +34,11 @@ def extract_text_with_metadata(pdf_path):
                 bbox = block.get("bbox", None)
                 chunks.append({
                     "text": block_text,
-                    "page": page_num + 1,
+                    "page": page_num,
                     "bounding_box": bbox
                 })
     doc.close()
     return chunks, page_datas, "\n".join(full_text)
-
-
-def delete_files_with_prefix(prefix, directory="."):
-    """Deletes all files starting with a given prefix in a directory."""
-    file_pattern = os.path.join(directory, f"{prefix}*")  # Match prefix
-    files_to_delete = glob.glob(file_pattern)  # Find matching files
-
-    for file_path in files_to_delete:
-        try:
-            os.remove(file_path)  # Delete file
-            print(f"Deleted: {file_path}")
-        except Exception as e:
-            print(f"Error deleting {file_path}: {e}")
-
-# Example: Delete all images with prefix "temp_page_"
-
-
-# from redissaver import RedisSaver
-
-# redisCli = redis.StrictRedis(host='localhost', port=6379, password='krasi')
-
-# CREDENTIALS
-
-st.set_page_config(layout="wide")
-# Show title and description.
-
-st.header("💬 Krasi Test")
-# st.write(
-#     "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-#     "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-#     "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
-# )
 
 def setKey():
     st.session_state.gemini_key = st.session_state.gkey
