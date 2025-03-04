@@ -48,9 +48,6 @@ if "loaded" not in st.session_state:
 if "gemini_key" not in st.session_state:
     st.session_state.gemini_key = ""
 
-if "artifacts" not in st.session_state:
-    st.session_state.artifacts = []
-
 def setKey():
     st.session_state.gemini_key = st.session_state.gemini_key_field
 
@@ -205,14 +202,13 @@ elif not st.session_state.loaded:
         st.session_state.graph = graph
         st.session_state.cff = config
         st.session_state.page_datas = page_datas
+        st.session_state.artifacts = []
+        st.session_state.messages = []
         os.remove(tmp_location)
         st.rerun()
 else:
     def reset():
         st.session_state.loaded = False
-        st.session_state.artifacts = []
-        st.session_state.pdfimages = []
-        st.session_state.messages = []
 
     st.button('New Chat', on_click=reset)
     col1, col2 = st.columns([1, 1])
@@ -220,10 +216,6 @@ else:
         st.subheader('Chat')
         container1 = st.container(height=600)
         with container1:
-            # st.markdown('<div class="scroll-container">', unsafe_allow_html=True)
-            if "messages" not in st.session_state:
-                st.session_state.messages = []
-                # Display the existing chat messages via `st.chat_message`.
             containerInnerUp = st.container(height=400)
             with containerInnerUp:
                 for message in st.session_state.messages:
