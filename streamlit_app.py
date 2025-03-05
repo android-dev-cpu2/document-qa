@@ -207,7 +207,7 @@ elif not st.session_state.loaded:
         st.session_state.cff = config
         st.session_state.page_datas = page_datas
         st.session_state.artifacts = []
-        st.session_state.messages = []
+        st.session_state.messages = [{"role": "assistant", "content": "Hello there! How can I help you today?"}]
         os.remove(tmp_location)
         st.rerun()
 else:
