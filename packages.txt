@@ -1,3 +1,5 @@
 poppler-utils
 unoconv
 libreoffice
+libreoffice-script-provider-python
+python3-uno
