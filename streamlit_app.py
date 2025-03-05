@@ -51,9 +51,12 @@ if "gemini_key" not in st.session_state:
 def setKey():
     st.session_state.gemini_key = st.session_state.gemini_key_field
 
+st.set_page_config(layout="wide")
+
 if st.session_state.gemini_key == "":
     st.text_input("Gemini API Key", type="default", key="gemini_key_field", on_change=setKey)
 elif not st.session_state.loaded:
+    st.header("Talk with my PDF")
     uploaded_file = st.file_uploader("Please upload a PDF document", type=["pdf"])
     if uploaded_file is not None:
         tmp_location = 'tmp_' + str(int(time.time()))
@@ -210,11 +213,10 @@ else:
     def reset():
         st.session_state.loaded = False
 
-    st.button('New Chat', on_click=reset)
-    col1, col2 = st.columns([1, 1])
+    spaceStart, col1, col2, spaceEnd = st.columns([1, 3, 5, 1])
     with col1:
         st.subheader('Chat')
-        container1 = st.container(height=600)
+        container1 = st.container()
         with container1:
             containerInnerUp = st.container(height=400)
             with containerInnerUp:
@@ -223,7 +225,7 @@ else:
                         st.markdown(message["content"])
                     # Create a chat input field to allow the user to enter a message. This will display
                     # automatically at the bottom of the page.
-            containerInnerDown = st.container(height=100)
+            containerInnerDown = st.container(height=73)
             with containerInnerDown:
                 if prompt := st.chat_input("What is up?"):
                     # Store and display the current prompt.
@@ -255,16 +257,8 @@ else:
                     st.rerun()
             
     with col2:     
-        st.header('Document')
-        st.markdown("""
-            <style>
-                .block-container {
-                    padding: 0rem 0rem !important;
-                }
-            </style>
-            """, unsafe_allow_html=True)
+        st.subheader('Document')
         pdfContainer = st.container(height=600)
-        static_width = 700
         with pdfContainer:
             for i, image in enumerate(st.session_state.pdfimages):
                 imgCopy = image.copy()
@@ -274,12 +268,11 @@ else:
                 pageHeight = mediaBox[3] - mediaBox[1]
                 scale = image.width / pageWidth
                 for artifact in st.session_state.artifacts:
-                    if (artifact.metadata["page"] == i + 1):
+                    if (artifact.metadata["page"] == i):
                         origBB = artifact.metadata["bounding_box"]
                         scaledBB = (origBB[0] * scale, origBB[1] * scale, origBB[2] * scale, origBB[3] * scale)
                         draw.rectangle(scaledBB, outline="red", width=3)
-                        print(artifact)
-                st.image(imgCopy, width=static_width)
+                st.image(imgCopy)
                
 
 
