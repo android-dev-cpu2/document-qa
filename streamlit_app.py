@@ -255,7 +255,7 @@ else:
                             st.session_state.messages.append(
                                     {"role": "assistant", "content": msg.content})
                     st.rerun()
-            
+            st.button("Start New Chat", on_click=reset)
     with col2:     
         st.subheader('Document')
         pdfContainer = st.container(height=600)
