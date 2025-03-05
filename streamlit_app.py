@@ -11,7 +11,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import MessagesState, StateGraph, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
-from PIL import ImageDraw
+from PIL import ImageDraw, Image
 from pdf2image import convert_from_path
 import subprocess
 from pathlib import Path
@@ -284,8 +284,9 @@ else:
         pdfContainer = st.container(height=600)
         with pdfContainer:
             for i, image in enumerate(st.session_state.pdfimages):
-                imgCopy = image.copy()
-                draw = ImageDraw.Draw(imgCopy)
+                imgCopy = image.convert("RGBA")
+                overlay = Image.new("RGBA", imgCopy.size, (255, 255, 255, 0))
+                draw = ImageDraw.Draw(overlay)
                 mediaBox = st.session_state.page_datas[i]
                 pageWidth = mediaBox[2] - mediaBox[0]
                 pageHeight = mediaBox[3] - mediaBox[1]
@@ -293,8 +294,9 @@ else:
                 for artifact in st.session_state.artifacts:
                     if (artifact.metadata["page"] == i):
                         origBB = artifact.metadata["bounding_box"]
-                        scaledBB = (origBB[0] * scale, origBB[1] * scale, origBB[2] * scale, origBB[3] * scale)
-                        draw.rectangle(scaledBB, outline="red", width=3)
+                        scaledBB = (origBB[0] * scale - 5, origBB[1] * scale - 5, origBB[2] * scale + 5, origBB[3] * scale + 5)
+                        draw.rounded_rectangle(scaledBB, radius=8, outline=(255, 0, 0, 150), width=2, fill=(255, 0, 0, 50))
+                imgCopy = Image.alpha_composite(imgCopy, overlay)
                 st.image(imgCopy)
                
 
