@@ -10,7 +10,6 @@ langchain_redis
 pypdf
 fitz
 PyMuPDF
-pdf2image
 matplotlib
 pdf2image
 poppler-utils
