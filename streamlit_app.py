@@ -155,6 +155,7 @@ elif not st.session_state.loaded:
                 "Use the following pieces of retrieved context to answer "
                 "the question. If you don't know the answer, say that you "
                 "don't know. You are a multilingual assistant. Always respond in the same language as the user\'s request."
+                "If you found the required information in the provided sources, always tell the user on which page numbers they are(incremented by 1 as they are zero-based) "
                 "\n\n"
                 f"{docs_content}"
             )
