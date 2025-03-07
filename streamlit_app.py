@@ -71,14 +71,14 @@ if st.session_state.gemini_key == "":
     st.text_input("Gemini API Key", type="default", key="gemini_key_field", on_change=setKey)
 elif not st.session_state.loaded:
     st.header("Talk with my PDF")
-    uploaded_file = st.file_uploader("Please upload a PDF document", type=["pdf", "docx"])
+    uploaded_file = st.file_uploader("Please upload a PDF document", type=["pdf", "docx", "xlsx", "pptx"])
     if uploaded_file is not None:
         extension = Path(uploaded_file.name).suffix
         tmp_location = 'tmp_' + str(int(time.time())) + extension
         with open(tmp_location, "wb") as f:
             f.write(uploaded_file.read())
 
-        if extension == '.docx':
+        if extension == '.docx' or extension == '.xlsx' or extension == '.pptx':
             upload_location = tmp_location
             tmp_location = 'tmp_' + str(int(time.time())) + '.pdf'
             convert_docx_to_pdf(upload_location, tmp_location)
